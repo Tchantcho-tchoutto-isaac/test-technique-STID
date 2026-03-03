@@ -1,0 +1,65 @@
+
+name: Tests quotidiens StackOverflow
+
+on:
+  schedule:
+    # Exécution tous les jours à 8h00 UTC (9h00 Paris)
+    - cron: '0 8 * * *'
+  workflow_dispatch:
+
+jobs:
+  test:
+    name: Exécution des tests
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout du code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - name: Installation des dépendances
+        run: npm ci
+      
+      - name: Installation des navigateurs Playwright
+        run: npx playwright install chromium --with-deps
+      
+      - name: Création des dossiers de résultats
+        run: mkdir -p test-results allure-report
+      
+      - name: Exécution des tests
+        run: npm run test
+        env:
+          ENV: prod
+      
+      - name: Génération du rapport Allure
+        if: always()  # Exécute même si les tests échouent
+        run: npm run allure:generate
+      
+      - name: Upload des résultats de test
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: |
+            test-results/
+            allure-report/
+            test-results/screenshots/
+            test-results/videos/
+            test-results/trace/
+      
+      - name: Déploiement du rapport sur GitHub Pages
+        if: always()
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./allure-report
+          destination_dir: ${{ github.run_number }}
+          keep_files: true
+      
+     
+        
